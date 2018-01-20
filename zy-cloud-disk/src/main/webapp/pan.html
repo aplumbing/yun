@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 上述3个meta标签*必须*放在最前面，任何其他内容都*必须*跟随其后！ -->
+<title>智游云盘</title>
+
+<!-- Bootstrap -->
+<link
+	href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css"
+	rel="stylesheet">
+<link
+	href="https://cdn.bootcss.com/bootstrap-table/1.11.1/bootstrap-table.min.css"
+	rel="stylesheet">
+<link href="https://cdn.bootcss.com/sweetalert/1.1.3/sweetalert.min.css"
+	rel="stylesheet">
+<!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+<!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+<!--[if lt IE 9]>
+      <script src="https://cdn.bootcss.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+      <script src="https://cdn.bootcss.com/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+</head>
+<body>
+	<div class="container">
+
+		<div class="panel panel-primary">
+			<div class="panel-heading">智游云盘</div>
+
+			<div id="toolbar">
+				<div class="btn-group btn-group-lg" role="group" aria-label="...">
+					<button type="button" class="btn btn-default"
+						onclick="createDirectory()">创建文件夹</button>
+					<button type="button" class="btn btn-default"
+						onclick="uploadButtonClick()">上传文件</button>
+					<button type="button" class="btn btn-default">Right</button>
+					<button type="button" class="btn btn-default"
+						onclick="openDirectory(0)">返回根目录</button>
+				</div>
+
+			</div>
+
+			<!-- 把 form 隐藏起来，必须设置  enctype 才能上传文件 -->
+			<form id="upload-form" style="display: none;"
+				enctype="multipart/form-data">
+				<input id="upload-input" type="file" name="file"
+					onchange="uploadFile()">
+			</form>
+
+			<table class="table"></table>
+		</div>
+	</div>
+	<!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+	<script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+	<!-- Include all compiled plugins (below), or include individual files as needed -->
+	<script
+		src="https://cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+	<script
+		src="https://cdn.bootcss.com/sweetalert/1.1.3/sweetalert-dev.min.js"></script>
+	<script
+		src="https://cdn.bootcss.com/bootstrap-table/1.11.1/bootstrap-table.min.js"></script>
+	<script
+		src="https://cdn.bootcss.com/bootstrap-table/1.11.1/locale/bootstrap-table-zh-CN.min.js"></script>
+
+	<script
+		src="https://cdn.bootcss.com/sweetalert/1.1.3/sweetalert-dev.min.js"></script>
+
+	<script type="text/javascript">
+		// currentDirectoryId 表示用户当前所在的文件夹的 id
+		var currentDirectoryId = 0;
+
+		function uploadFile() {
+			var formData = new FormData($('#upload-form')[0]);
+
+			formData.append("directoryId", currentDirectoryId);
+
+			$.ajax({
+				url : "http://localhost:8080/zy-cloud-disk/files",
+				type : 'POST',
+				data : formData,
+
+				// 使用 ajax 提交表单信息，下面两个参数必须写
+				processData : false,
+				contentType : false,
+
+				success : function(responseVO) {
+
+					if (responseVO.code == 0) {
+
+						swal("Nice!", "上传成功", "success");
+
+						// 上传成功，刷新表格
+						$('.table').bootstrapTable('refresh');
+					} else {
+
+						swal("抱歉!", responseVO.message, "warning")
+					}
+				},
+				error : function(error) {
+
+					swal("出错了!", JSON.stringify(error), "error")
+				}
+			});
+
+		}
+
+		function uploadButtonClick() {
+			// 触发 upload-input 的点击效果
+			$('#upload-input').click();
+		}
+
+		function createDirectory() {
+
+			swal({
+				title : "请输文件夹名字",
+				type : "input",
+				showCancelButton : true,
+				closeOnConfirm : false,
+				animation : "slide-from-top",
+				inputPlaceholder : "请输入..."
+			}, function(inputValue) {
+				if (inputValue === false) {
+					return false;
+				}
+				if (inputValue === "") {
+					swal.showInputError("内容不能为空！");
+					return false;
+				}
+
+				$.ajax({
+					url : 'http://localhost:8080/zy-cloud-disk/directies',
+					type : 'POST',
+					data : JSON.stringify({
+						'name' : inputValue,
+						'parentId' : currentDirectoryId
+					}),
+					contentType : 'application/json',
+					dataType : 'json',
+					success : function(responseVO) {
+
+						if (responseVO.code == 0) {
+
+							swal("Nice!", "创建成功", "success");
+
+							// 添加成功，刷新表格
+							$('.table').bootstrapTable('refresh');
+						} else {
+
+							swal("抱歉!", responseVO.message, "warning")
+						}
+					},
+					error : function(error) {
+
+						swal("出错了!", JSON.stringify(error), "error")
+					}
+				});
+			});
+		}
+
+		function openDirectory(id) {
+
+			// 每次打开文件夹修改 currentDirectoryId 的值
+			currentDirectoryId = id;
+
+			// refreshOptions 设置的参数会替换原有的参数
+			// refresh 设置的参数只在当此请求有效，下次刷新还是最初的数据
+			$('.table').bootstrapTable('refreshOptions', {
+				url : 'http://localhost:8080/zy-cloud-disk/directies/' + id
+			})
+		}
+
+		function downloadFile(fileId, fileName) {
+
+			$.ajax({
+				url : 'http://localhost:8080/zy-cloud-disk/file/' + fileId
+						+ '/' + fileName,
+				success : function(responseVO) {
+
+				},
+				error : function(error) {
+
+					swal("出错了!", JSON.stringify(error), "error")
+				}
+			});
+		}
+
+		$('document')
+				.ready(
+						function() {
+
+							$('.table')
+									.bootstrapTable(
+											{
+												url : 'http://localhost:8080/zy-cloud-disk/directies/0',
+												columns : [
+														{
+															checkbox : true
+														},
+														{
+															title : '标题',
+															field : 'name',
+															formatter : function(
+																	value, row,
+																	index) {
+																if (row.isFile) {
+																	var html1 = '<a type="button" class="btn btn-default btn-lg" href="http://localhost:8080/zy-cloud-disk/files/'
+																	var html2 = row.fileId
+																			+ '?fileName='
+																			+ row.name
+																			+ '">'
+																	var html3 = '<span class="glyphicon glyphicon-file" aria-hidden="true"></span>';
+																	var html4 = '&emsp;'
+																			+ row.name
+																			+ '</a>';
+
+																	return html1
+																			+ html2
+																			+ html3
+																			+ html4;
+																} else {
+																	var html1 = '<button type="button" class="btn btn-default btn-lg"';
+
+																	var html2 = 'onclick="openDirectory('
+																			+ row.id
+																			+ ')"';
+																	var html3 = '><span class="glyphicon glyphicon-folder-open" aria-hidden="true"></span>';
+
+																	var html4 = '&emsp;'
+																			+ value
+
+																	var html5 = '</button>';
+
+																	return html1
+																			+ html2
+																			+ html3
+																			+ html4
+																			+ html5;
+																}
+															}
+														} ],
+												toolbar : '#toolbar',
+												dataField : 'data',
+												cache : false,
+												queryParams : function(params) {
+												},
+												responseHandler : function(
+														responseVO) {
+													return {
+														'total' : responseVO.data.length,
+														'data' : responseVO.data
+													};
+												},
+											})
+						})
+	</script>
+</body>
+</html>

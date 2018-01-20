@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:tx="http://www.springframework.org/schema/tx" 
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+	http://www.springframework.org/schema/beans/spring-beans.xsd
+	http://www.springframework.org/schema/context
+	http://www.springframework.org/schema/context/spring-context.xsd 
+	http://www.springframework.org/schema/tx
+	http://www.springframework.org/schema/tx/spring-tx.xsd 
+	http://www.springframework.org/schema/aop
+	http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+	<!-- 引入另外一个 spring 配置文件 -->
+	<import resource="classpath:spring/spring-dao.xml" />
+	<context:component-scan base-package="com.zhiyou100.service" />
+
+	<bean id="fileService" class="com.zhiyou100.service.impl.FileServiceImpl">
+		<property name="localDirPath" value="D:/hadoop/" />
+		<property name="hdfsDirPath" value="/zy/cloud-disk/" />
+		<property name="directoryDao" ref="directoryDao" />
+		<property name="fileDao" ref="fileDao" />
+	</bean>
+
+	<bean id="transactionManager"
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+
+	<tx:annotation-driven />
+	
+	<!-- 在 AccountServiceImpl 中所有方法执行完和抛异常后分别执行 -->
+	<!-- Log4jAspect 这个类的 accountAfterReturning 和 accountAfterThrowing 方法 -->
+	<bean id="log4j" class="com.zhiyou100.log.Log4jAspect"/>
+	<aop:config>
+		<aop:aspect id="log" ref="log4j">
+			<aop:pointcut expression="execution(* com.zhiyou100.service.impl.AccountServiceImpl.*(..) )" id="accountPoint"/>
+			<aop:after-returning method="accountAfterReturning" pointcut-ref="accountPoint"/>
+			<aop:after-throwing method="accountAfterThrowing" pointcut-ref="accountPoint" throwing="ex"/>
+		</aop:aspect>
+	</aop:config>
+
+</beans>
